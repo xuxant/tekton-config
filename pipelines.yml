@@ -6,8 +6,10 @@ spec:
   workspaces:
     - name: git-source
       description: The git repo
-    - name: git-creds
+    - name: git-credentials
       description: ssh credentials
+    - name: docker-credentials
+      description: docker creds
   params:
     - name: gitUrl
       description: Git repository url
@@ -18,14 +20,16 @@ spec:
       type: string
     - name: pathToContext
       description: The path to the build context, used by Kaniko - within the workspace
-      default: src
+      default: .
       type: string
     - name: pathToYamlFile
       description: The path to the yaml file to deploy within the git source
       type: string
+      default: k8s/deploy.yaml
     - name: imageUrl
       description: Image name including repository
       type: string
+      default: xuxant/dummy
     - name: imageTag
       description: Image tag
       type: string
@@ -37,6 +41,8 @@ spec:
       workspaces:
         - name: output
           workspace: git-source
+        - name: ssh-directory
+          workspace: git-credentials
       params:
         - name: url
           value: "$(params.gitUrl)"
@@ -54,6 +60,8 @@ spec:
       workspaces:
         - name: source
           workspace: git-source
+        - name: dockerconfig
+          workspace: docker-credentials
       params:
         - name: CONTEXT
           value: $(params.pathToContext)
@@ -75,4 +83,4 @@ spec:
         - name: imageTag
           value: $(params.imageTag)
         - name: imageDigest
-          value: $(tasks.build-and-push-image.results.IMAGE-DIGEST)
+          value: $(tasks.build-and-push-image.results.IMAGE_DIGEST)

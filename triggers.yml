@@ -35,7 +35,9 @@ spec:
     - name: git_revision
       value: $(body.ref)
     - name: gitUrl
-      value: $(body.repository)
+      value: $(body.repository.ssh_url)
+    - name: imageTag
+      value: $(body.commits[0].id)
 ---
 apiVersion: triggers.tekton.dev/v1beta1
 kind: TriggerTemplate
@@ -45,12 +47,17 @@ spec:
   params:
     - name: git_revision
     - name: gitUrl
+    - name: imageTag
   resourcetemplates:
     - apiVersion: tekton.dev/v1beta1
       kind: PipelineRun
       metadata:
         generateName: backend-pipeline-run-
       spec:
+        serviceAccountName: tekton-deploy
+        podTemplate:
+          securityContext:
+            fsGroup: 65532
         pipelineRef:
           name: app
         params:
@@ -60,9 +67,20 @@ spec:
             value: $(tt.params.gitUrl)
           - name: imageUrl
             value: xuxant/test
+          - name: imageTag
+            value: $(tt.params.imageTag)
         workspaces:
           - name: git-source
-            emptyDir: {}
-          - name: git-creds
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 2Gi
+          - name: git-credentials
             secret:
-              secretName: gh-secret
+              secretName: git-creds
+          - name: docker-credentials
+            secret:
+              secretName: tekton-cred
