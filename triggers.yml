@@ -1,0 +1,68 @@
+# 123456789abc
+
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: github-listener
+  annotations:
+    tekton.dev/payload-validation: "false"
+spec:
+  serviceAccountName: tekton-ci-listener
+  triggers:
+    - name: github-listener
+      interceptors:
+        - ref:
+            name: "github"
+          params:
+            - name: "secretRef"
+              value:
+                secretName: gh-secret
+                secretKey: secretToken
+            - name: "eventTypes"
+              value: [ "push" ]
+      bindings:
+        - ref: github-binding
+      template:
+        ref: github-template
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: github-binding
+spec:
+  params:
+    - name: git_revision
+      value: $(body.ref)
+    - name: gitUrl
+      value: $(body.repository)
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: github-template
+spec:
+  params:
+    - name: git_revision
+    - name: gitUrl
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        generateName: backend-pipeline-run-
+      spec:
+        pipelineRef:
+          name: app
+        params:
+          - name: gitRevision
+            value: $(tt.params.git_revision)
+          - name: gitUrl
+            value: $(tt.params.gitUrl)
+          - name: imageUrl
+            value: xuxant/test
+        workspaces:
+          - name: git-source
+            emptyDir: {}
+          - name: git-creds
+            secret:
+              secretName: gh-secret
